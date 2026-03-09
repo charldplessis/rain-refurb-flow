@@ -217,7 +217,7 @@ function makeTfcProcess(stage, num) {
   div.innerHTML = `
     <div class="tfc-proc-num">Stage ${String(num).padStart(2, '0')}</div>
     <div class="tfc-proc-name">${escHtml(stage.name)}</div>
-    <div class="tfc-proc-time">⏱ ${stage.time_minutes} min</div>
+    <div class="tfc-proc-time">⏱ ${stage.time_minutes}m</div>
   `;
   return div;
 }
@@ -229,32 +229,25 @@ function makeTfcDecision(stage) {
   const div = document.createElement('div');
   div.className = 'tfc-decision';
 
-  // Left column (empty mirror)
-  const left = document.createElement('div');
-  left.className = 'tfc-d-left';
-
-  // Center column: diamond + Yes label
+  // Center: diamond + Yes label
   const center = document.createElement('div');
   center.className = 'tfc-d-center';
   center.innerHTML = `
     <div class="tfc-diamond ${stage.status}"><span>Pass?</span></div>
-    <div class="tfc-yes-lbl ${ap ? 'active' : ''}">Yes ↓</div>
+    <div class="tfc-yes-lbl ${ap ? 'active' : ''}">Yes →</div>
   `;
 
-  // Right column: No branch
-  const right = document.createElement('div');
-  right.className = 'tfc-d-right';
-  right.innerHTML = `
-    <div class="tfc-no-branch">
-      <div class="tfc-no-line ${dc ? 'active' : ''}"></div>
-      <span class="tfc-no-lbl ${dc ? 'active' : ''}">No</span>
-      ${dc ? '<div class="tfc-declined-pill">✕ Declined</div>' : ''}
-    </div>
+  // No branch: hangs below via position:absolute
+  const noBranch = document.createElement('div');
+  noBranch.className = 'tfc-no-branch';
+  noBranch.innerHTML = `
+    <div class="tfc-no-line ${dc ? 'active' : ''}"></div>
+    <span class="tfc-no-lbl ${dc ? 'active' : ''}">No</span>
+    ${dc ? '<div class="tfc-declined-pill">✕ Declined</div>' : ''}
   `;
 
-  div.appendChild(left);
   div.appendChild(center);
-  div.appendChild(right);
+  div.appendChild(noBranch);
   return div;
 }
 
