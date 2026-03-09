@@ -184,70 +184,78 @@ function renderGraphic() {
 
   const model = models.find(m => m.id === currentModelId);
 
-  // START terminal
-  flowchart.appendChild(makeGfxTerminal('start', '▶  START — ' + (model ? model.name : '')));
+  flowchart.appendChild(makeTfcOval('start', model ? model.name : 'Start'));
 
   stages.forEach((stage, idx) => {
-    flowchart.appendChild(makeConnector());
-    flowchart.appendChild(makeGfxNode(stage, idx + 1));
-
-    // Decision chip after each stage (except last — it flows to END)
-    if (idx < stages.length - 1) {
-      flowchart.appendChild(makeGfxDecisionChip(stage.status));
-    }
+    flowchart.appendChild(makeTfcArrow());
+    flowchart.appendChild(makeTfcProcess(stage, idx + 1));
+    flowchart.appendChild(makeTfcArrow());
+    flowchart.appendChild(makeTfcDecision(stage));
   });
 
-  if (stages.length > 0) {
-    flowchart.appendChild(makeGfxDecisionChip(stages[stages.length - 1].status));
-    flowchart.appendChild(makeConnector());
-    flowchart.appendChild(makeGfxTerminal('end', '■  END'));
-  }
+  flowchart.appendChild(makeTfcArrow());
+  flowchart.appendChild(makeTfcOval('end', 'End'));
 }
 
-function makeGfxTerminal(type, text) {
+function makeTfcOval(type, text) {
   const div = document.createElement('div');
-  div.className = `gfx-terminal ${type}`;
+  div.className = `tfc-oval ${type}`;
   div.textContent = text;
   return div;
 }
 
-function makeGfxNode(stage, num) {
+function makeTfcArrow() {
   const div = document.createElement('div');
-  div.className = `gfx-node ${stage.status}`;
+  div.className = 'tfc-arrow';
+  div.innerHTML = '<div class="tfc-arrow-line"></div><div class="tfc-arrow-head"></div>';
+  return div;
+}
 
-  const statusLabel = { approved: '✓ Approved', declined: '✕ Declined', pending: '◌ Pending' };
-
+function makeTfcProcess(stage, num) {
+  const div = document.createElement('div');
+  div.className = `tfc-process ${stage.status}`;
   div.innerHTML = `
-    <div class="gfx-node-inner">
-      <div class="gfx-num">${String(num).padStart(2, '0')}</div>
-      <div class="gfx-body">
-        <div class="gfx-name">${escHtml(stage.name)}</div>
-        <div class="gfx-meta">
-          <span class="gfx-time">⏱ ${stage.time_minutes} min</span>
-          <span class="gfx-status-chip ${stage.status}">${statusLabel[stage.status] || stage.status}</span>
-        </div>
-      </div>
-    </div>
+    <div class="tfc-proc-num">Stage ${String(num).padStart(2, '0')}</div>
+    <div class="tfc-proc-name">${escHtml(stage.name)}</div>
+    <div class="tfc-proc-time">⏱ ${stage.time_minutes} min</div>
   `;
   return div;
 }
 
-function makeGfxDecisionChip(status) {
-  const wrap = document.createElement('div');
-  wrap.className = 'gfx-decision-wrap';
+function makeTfcDecision(stage) {
+  const ap = stage.status === 'approved';
+  const dc = stage.status === 'declined';
 
-  const line = document.createElement('div');
-  line.className = 'gfx-decision-line';
+  const div = document.createElement('div');
+  div.className = 'tfc-decision';
 
-  const diamond = document.createElement('div');
-  diamond.className = `gfx-diamond ${status}`;
-  const labels = { approved: '✓', declined: '✕', pending: '?' };
-  diamond.innerHTML = `<span>${labels[status] || '?'}</span>`;
+  // Left column (empty mirror)
+  const left = document.createElement('div');
+  left.className = 'tfc-d-left';
 
-  wrap.appendChild(line);
-  wrap.appendChild(diamond);
-  wrap.appendChild(line.cloneNode());
-  return wrap;
+  // Center column: diamond + Yes label
+  const center = document.createElement('div');
+  center.className = 'tfc-d-center';
+  center.innerHTML = `
+    <div class="tfc-diamond ${stage.status}"><span>Pass?</span></div>
+    <div class="tfc-yes-lbl ${ap ? 'active' : ''}">Yes ↓</div>
+  `;
+
+  // Right column: No branch
+  const right = document.createElement('div');
+  right.className = 'tfc-d-right';
+  right.innerHTML = `
+    <div class="tfc-no-branch">
+      <div class="tfc-no-line ${dc ? 'active' : ''}"></div>
+      <span class="tfc-no-lbl ${dc ? 'active' : ''}">No</span>
+      ${dc ? '<div class="tfc-declined-pill">✕ Declined</div>' : ''}
+    </div>
+  `;
+
+  div.appendChild(left);
+  div.appendChild(center);
+  div.appendChild(right);
+  return div;
 }
 
 // ── Detail View ───────────────────────────────────────────────
