@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>rain Refurb Flow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <span class="logo-rain">rain</span>
+        <span class="logo-sub">Refurb Flow</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Models</div>
+      <ul id="modelList" class="category-list"></ul>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <header class="topbar" id="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title" id="topbarTitle">Select a model</div>
+      </div>
+      <div class="topbar-right hidden" id="topbarRight">
+        <div class="topbar-stats" id="topbarStats"></div>
+        <div class="stat-divider"></div>
+        <button class="btn-secondary" id="btnReset">Reset All</button>
+      </div>
+    </header>
+
+    <!-- Progress bar -->
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+    </div>
+
+    <!-- Flowchart area -->
+    <div class="flowchart-wrap" id="flowchartWrap">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">&#9881;</div>
+        <p>Select a model from the sidebar to view its refurbishment flow</p>
+      </div>
+      <div class="flowchart hidden" id="flowchart"></div>
+    </div>
+
+  </main>
+
+  <!-- Modal: Add / Edit Stage -->
+  <div class="modal-overlay hidden" id="modalStage">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalStageTitle">Add Stage</h2>
+        <button class="modal-close" data-modal="modalStage">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editStageId" />
+        <div class="form-group" style="margin-bottom:16px">
+          <label class="form-label">Stage Name</label>
+          <input type="text" class="form-input" id="stageName" placeholder="e.g. Inspection" />
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label class="form-label">Time to Complete (minutes)</label>
+          <input type="number" class="form-input" id="stageTime" min="1" placeholder="10" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notes</label>
+          <textarea class="form-input form-textarea" id="stageNotes" placeholder="Stage instructions or notes..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" data-modal="modalStage">Cancel</button>
+        <button class="btn-primary" id="btnSaveStage">Save Stage</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
