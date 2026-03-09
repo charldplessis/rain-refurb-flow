@@ -62,7 +62,7 @@ async function initDB() {
         time_minutes INT DEFAULT 10,
         sort_order INT DEFAULT 0,
         status ENUM('pending','approved','declined') DEFAULT 'pending',
-        notes TEXT DEFAULT '',
+        notes TEXT,
         FOREIGN KEY (model_id) REFERENCES models(id) ON DELETE CASCADE
       )
     `);
