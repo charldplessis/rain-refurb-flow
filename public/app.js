@@ -1,13 +1,13 @@
 // ── State ─────────────────────────────────────────────────────
 let models = [];
 let currentModelId = null;
+let currentView = 'detail'; // 'detail' | 'graphic'
 let stages = [];
 
 // ── Init ──────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadModels();
   bindModalEvents();
-
   document.getElementById('btnReset').addEventListener('click', handleReset);
   document.getElementById('btnSaveStage').addEventListener('click', handleSaveStage);
 });
@@ -37,19 +37,51 @@ async function loadModels() {
 function renderSidebar() {
   const list = document.getElementById('modelList');
   list.innerHTML = '';
+
   models.forEach(model => {
+    const isActive = model.id === currentModelId;
     const li = document.createElement('li');
-    if (model.id === currentModelId) li.classList.add('active');
+    if (isActive) li.classList.add('active');
+
     li.innerHTML = `
-      <a href="#" data-id="${model.id}">
+      <a href="#" class="model-link" data-id="${model.id}">
+        <span class="model-chevron">${isActive ? '▾' : '▸'}</span>
         ${escHtml(model.name)}
         <span class="cat-count">${model.stage_count || 0}</span>
       </a>
+      ${isActive ? `
+      <ul class="sub-nav-list">
+        <li class="${currentView === 'graphic' ? 'active' : ''}">
+          <a href="#" class="sub-link" data-view="graphic">
+            <span class="sub-icon">◈</span> Graphic
+          </a>
+        </li>
+        <li class="${currentView === 'detail' ? 'active' : ''}">
+          <a href="#" class="sub-link" data-view="detail">
+            <span class="sub-icon">≡</span> Process Detail
+          </a>
+        </li>
+      </ul>` : ''}
     `;
-    li.querySelector('a').addEventListener('click', (e) => {
+
+    li.querySelector('.model-link').addEventListener('click', (e) => {
       e.preventDefault();
-      selectModel(model.id);
+      if (model.id === currentModelId) {
+        // Already selected — toggle back to detail view
+        switchView('detail');
+      } else {
+        currentView = 'detail';
+        selectModel(model.id);
+      }
     });
+
+    li.querySelectorAll('.sub-link').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView(a.dataset.view);
+      });
+    });
+
     list.appendChild(li);
   });
 }
@@ -58,35 +90,52 @@ function updateSidebarBadge() {
   const model = models.find(m => m.id === currentModelId);
   if (!model) return;
   model.stage_count = stages.length;
-  const a = document.querySelector(`#modelList li a[data-id="${currentModelId}"]`);
-  if (a) {
-    const badge = a.querySelector('.cat-count');
-    if (badge) badge.textContent = stages.length;
-  }
+  renderSidebar();
 }
 
 // ── Select model ──────────────────────────────────────────────
 async function selectModel(modelId) {
   currentModelId = modelId;
-  document.querySelectorAll('#modelList li').forEach(li => li.classList.remove('active'));
-  const a = document.querySelector(`#modelList li a[data-id="${modelId}"]`);
-  if (a) a.closest('li').classList.add('active');
-
-  const model = models.find(m => m.id === modelId);
-  document.getElementById('topbarTitle').textContent = model ? model.name : '';
   document.getElementById('topbarRight').classList.remove('hidden');
-
   await loadStages(modelId);
+}
+
+function switchView(view) {
+  currentView = view;
+  renderSidebar();
+  renderTopbar();
+  renderCurrentView();
+}
+
+function renderTopbar() {
+  const model = models.find(m => m.id === currentModelId);
+  const name  = model ? model.name : '';
+  const badge = currentView === 'graphic'
+    ? ' <span class="view-badge">Graphic</span>'
+    : ' <span class="view-badge detail">Process Detail</span>';
+  document.getElementById('topbarTitle').innerHTML = escHtml(name) + badge;
+
+  // Show reset only in detail view
+  document.getElementById('btnReset').style.display = currentView === 'detail' ? '' : 'none';
 }
 
 async function loadStages(modelId) {
   try {
     stages = await api('GET', `/api/models/${modelId}/stages`);
-    renderFlowchart();
+    renderTopbar();
     renderStats();
+    renderCurrentView();
     updateSidebarBadge();
   } catch (err) {
     console.error('Failed to load stages:', err);
+  }
+}
+
+function renderCurrentView() {
+  if (currentView === 'graphic') {
+    renderGraphic();
+  } else {
+    renderDetail();
   }
 }
 
@@ -123,14 +172,93 @@ function renderStats() {
   document.getElementById('progressBar').style.width = pct + '%';
 }
 
-// ── Flowchart ─────────────────────────────────────────────────
-function renderFlowchart() {
+// ── Graphic View ──────────────────────────────────────────────
+function renderGraphic() {
   const emptyState = document.getElementById('emptyState');
   const flowchart  = document.getElementById('flowchart');
 
   emptyState.classList.add('hidden');
   flowchart.classList.remove('hidden');
   flowchart.innerHTML = '';
+  flowchart.className = 'flowchart graphic-view';
+
+  const model = models.find(m => m.id === currentModelId);
+
+  // START terminal
+  flowchart.appendChild(makeGfxTerminal('start', '▶  START — ' + (model ? model.name : '')));
+
+  stages.forEach((stage, idx) => {
+    flowchart.appendChild(makeConnector());
+    flowchart.appendChild(makeGfxNode(stage, idx + 1));
+
+    // Decision chip after each stage (except last — it flows to END)
+    if (idx < stages.length - 1) {
+      flowchart.appendChild(makeGfxDecisionChip(stage.status));
+    }
+  });
+
+  if (stages.length > 0) {
+    flowchart.appendChild(makeGfxDecisionChip(stages[stages.length - 1].status));
+    flowchart.appendChild(makeConnector());
+    flowchart.appendChild(makeGfxTerminal('end', '■  END'));
+  }
+}
+
+function makeGfxTerminal(type, text) {
+  const div = document.createElement('div');
+  div.className = `gfx-terminal ${type}`;
+  div.textContent = text;
+  return div;
+}
+
+function makeGfxNode(stage, num) {
+  const div = document.createElement('div');
+  div.className = `gfx-node ${stage.status}`;
+
+  const statusLabel = { approved: '✓ Approved', declined: '✕ Declined', pending: '◌ Pending' };
+
+  div.innerHTML = `
+    <div class="gfx-node-inner">
+      <div class="gfx-num">${String(num).padStart(2, '0')}</div>
+      <div class="gfx-body">
+        <div class="gfx-name">${escHtml(stage.name)}</div>
+        <div class="gfx-meta">
+          <span class="gfx-time">⏱ ${stage.time_minutes} min</span>
+          <span class="gfx-status-chip ${stage.status}">${statusLabel[stage.status] || stage.status}</span>
+        </div>
+      </div>
+    </div>
+  `;
+  return div;
+}
+
+function makeGfxDecisionChip(status) {
+  const wrap = document.createElement('div');
+  wrap.className = 'gfx-decision-wrap';
+
+  const line = document.createElement('div');
+  line.className = 'gfx-decision-line';
+
+  const diamond = document.createElement('div');
+  diamond.className = `gfx-diamond ${status}`;
+  const labels = { approved: '✓', declined: '✕', pending: '?' };
+  diamond.innerHTML = `<span>${labels[status] || '?'}</span>`;
+
+  wrap.appendChild(line);
+  wrap.appendChild(diamond);
+  wrap.appendChild(line.cloneNode());
+  return wrap;
+}
+
+// ── Detail View ───────────────────────────────────────────────
+function renderDetail() {
+  const emptyState = document.getElementById('emptyState');
+  const flowchart  = document.getElementById('flowchart');
+
+  emptyState.classList.add('hidden');
+  flowchart.classList.remove('hidden');
+  flowchart.innerHTML = '';
+  flowchart.className = 'flowchart';
 
   const model = models.find(m => m.id === currentModelId);
   flowchart.appendChild(makeTerminal('▶  Start' + (model ? ' — ' + model.name : '')));
@@ -224,13 +352,13 @@ function makeStageCard(stage, num) {
 // ── Status ────────────────────────────────────────────────────
 function setStageStatus(stage, card, newStatus) {
   stage.status = newStatus;
+  // Update detail card DOM
   card.className = `stage-card ${newStatus}`;
   card.querySelector('.status-pill').className = `status-pill ${newStatus}`;
   card.querySelector('.status-pill').textContent = capitalize(newStatus);
   card.querySelector('.btn-approve').classList.toggle('active', newStatus === 'approved');
   card.querySelector('.btn-decline').classList.toggle('active', newStatus === 'declined');
   renderStats();
-  updateSidebarBadge();
   api('PUT', `/api/stages/${stage.id}`, { status: newStatus }).catch(console.error);
 }
 
@@ -252,10 +380,7 @@ async function handleSaveStage() {
   const time  = parseInt(document.getElementById('stageTime').value) || 10;
   const notes = document.getElementById('stageNotes').value.trim();
 
-  if (!name) {
-    document.getElementById('stageName').focus();
-    return;
-  }
+  if (!name) { document.getElementById('stageName').focus(); return; }
 
   try {
     if (id) {
@@ -265,7 +390,7 @@ async function handleSaveStage() {
     }
     hideModal('modalStage');
     await loadStages(currentModelId);
-    if (!id) {
+    if (!id && currentView === 'detail') {
       const wrap = document.getElementById('flowchartWrap');
       setTimeout(() => { wrap.scrollTop = wrap.scrollHeight; }, 100);
     }
@@ -315,8 +440,7 @@ function bindModalEvents() {
       document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => hideModal(m.id));
     }
     if (e.key === 'Enter' && !document.getElementById('modalStage').classList.contains('hidden')) {
-      const active = document.activeElement;
-      if (active && active.tagName !== 'TEXTAREA') handleSaveStage();
+      if (document.activeElement && document.activeElement.tagName !== 'TEXTAREA') handleSaveStage();
     }
   });
 }
